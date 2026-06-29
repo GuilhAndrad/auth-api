@@ -18,7 +18,7 @@ final class RegisterUserAction
             $user = User::create([
                 'name' => $dto->name,
                 'email' => $dto->email,
-                'password' => $dto->password, // cast 'hashed' no model aplica bcrypt
+                'password' => $dto->password,
             ]);
 
             $token = $user->createToken($dto->deviceName);

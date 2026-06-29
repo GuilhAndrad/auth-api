@@ -28,7 +28,7 @@ final class ResetPasswordAction
         }
         $deleted = DB::table('password_reset_tokens')
             ->where('email', $dto->email)
-            ->where('token', $row->token) // ancora no hash exato, não só no email
+            ->where('token', $row->token)
             ->delete();
 
         if ($deleted === 0) {

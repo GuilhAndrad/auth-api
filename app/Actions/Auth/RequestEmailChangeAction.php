@@ -23,7 +23,7 @@ final class RequestEmailChangeAction
 
         DB::table('password_reset_tokens')->upsert(
             [[
-                'email' => $dto->newEmail, // chave é o NOVO e-mail
+                'email' => $dto->newEmail,
                 'token' => Hash::make($code),
                 'created_at' => now(),
             ]],

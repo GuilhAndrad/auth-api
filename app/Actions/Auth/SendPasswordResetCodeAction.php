@@ -14,7 +14,7 @@ final class SendPasswordResetCodeAction
     public function execute(string $email): void
     {
         $user = User::query()
-            ->select(['id', 'name', 'email']) // evita trazer password e outros campos desnecessários
+            ->select(['id', 'name', 'email'])
             ->where('email', $email)
             ->first();
 

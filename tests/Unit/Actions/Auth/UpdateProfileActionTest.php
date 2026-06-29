@@ -53,8 +53,7 @@ it('updates only the email when name is null', function (): void {
 });
 
 it('returns a fresh user instance reflecting the persisted state', function (): void {
-    // Garante que o retorno da Action é o estado real do banco via ->fresh(),
-    // não a instância em memória (potencialmente stale).
+
     $user = User::factory()->create(['name' => 'Old Name']);
 
     $dto = new UpdateProfileDTO(name: 'New Name', email: null);
@@ -65,9 +64,7 @@ it('returns a fresh user instance reflecting the persisted state', function (): 
 });
 
 it('does not issue any UPDATE when both dto values are null', function (): void {
-    // O guard empty($payload) evita disparar UPDATE users SET updated_at = ?
-    // desnecessário quando nenhum campo foi enviado.
-    // Verificamos indiretamente: updated_at não deve mudar.
+
     $user = User::factory()->create([
         'name' => 'Stable Name',
         'email' => 'stable@example.com',
@@ -83,18 +80,14 @@ it('does not issue any UPDATE when both dto values are null', function (): void 
 });
 
 it('throws RuntimeException if user is deleted concurrently after update', function (): void {
-    // Valida o guard defensivo: fresh() ?? throw RuntimeException.
-    // Se o user for deletado entre o update e o fresh() (deleção concorrente),
-    // a Action deve falhar explicitamente em vez de retornar null silencioso.
+
     $user = User::factory()->create(['name' => 'To Be Deleted']);
 
     $dto = new UpdateProfileDTO(name: 'New Name', email: null);
 
-    // Força deleção concorrente após o update, antes do fresh()
-    // Mockamos parcialmente: update ocorre, depois deletamos, depois fresh() retorna null.
     User::saving(function (User $u) use ($user): void {
         if ($u->id === $user->id) {
-            // Deleta diretamente no banco sem disparar events do Eloquent
+
             DB::table('users')->where('id', $user->id)->delete();
         }
     });

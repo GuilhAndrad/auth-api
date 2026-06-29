@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-// Helper local: insere código de verificação com timestamp configurável.
 function insertVerificationCode(string $email, string $code, ?Carbon $createdAt = null): void
 {
     DB::table('password_reset_tokens')->updateOrInsert(
@@ -47,7 +46,7 @@ it('throws when code is wrong', function (): void {
 });
 
 it('throws when code is expired', function (): void {
-    // A Action filtra a expiração no SELECT — código expirado não retorna do banco.
+
     $user = User::factory()->create(['email_verified_at' => null]);
     insertVerificationCode($user->email, '123456', now()->subMinutes(20));
 
@@ -81,25 +80,20 @@ it('is idempotent — does nothing when email is already verified', function ():
     expect(fn () => (new VerifyEmailAction)->execute($user, '123456'))
         ->not->toThrow(Throwable::class);
 
-    // Verifica que email_verified_at continua preenchido e no passado —
-    // a Action não zerou nem atualizou o campo.
     expect($user->fresh()->email_verified_at)
         ->not->toBeNull()
         ->and($user->fresh()->email_verified_at->isPast())->toBeTrue();
 });
 
 it('prevents replay attack via atomic delete', function (): void {
-    // Valida a proteção contra uso duplo do mesmo código:
-    // o delete atômico garante que apenas uma requisição "ganha".
+
     $user = User::factory()->create(['email_verified_at' => null]);
     insertVerificationCode($user->email, '123456');
 
-    // Simula outra requisição consumindo o código antes desta terminar.
     DB::table('password_reset_tokens')->where('email', $user->email)->delete();
 
     expect(fn () => (new VerifyEmailAction)->execute($user, '123456'))
         ->toThrow(InvalidEmailVerificationCodeException::class);
 
-    // email_verified_at não deve ter sido setado.
     expect($user->fresh()->email_verified_at)->toBeNull();
 });

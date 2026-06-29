@@ -14,7 +14,7 @@ final class VerifyEmailAction
 {
     public function execute(User $user, string $code): void
     {
-        // Idempotente: já verificado não precisa fazer nada.
+
         if ($user->email_verified_at !== null) {
             return;
         }

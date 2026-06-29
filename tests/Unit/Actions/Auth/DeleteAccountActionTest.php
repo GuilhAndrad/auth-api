@@ -37,7 +37,7 @@ it('does not affect tokens from other users', function (): void {
 });
 
 it('succeeds even when the user has no tokens', function (): void {
-    // tokens()->delete() em conjunto vazio deve ser silencioso — não pode explodir.
+
     $user = User::factory()->create();
 
     expect(fn () => (new DeleteAccountAction)->execute($user))
@@ -47,17 +47,13 @@ it('succeeds even when the user has no tokens', function (): void {
 });
 
 it('deletes tokens and user atomically', function (): void {
-    // Valida que a DB::transaction envolve ambas as operações.
-    // Se delete() do user falhar após tokens()->delete(), o rollback deve
-    // restaurar os tokens — não podemos ter tokens órfãos sem o user existir.
-    // Verificamos o happy path: após execução, NENHUM dos dois deve existir.
+
     $user = User::factory()->create();
     $userId = $user->id;
     $user->createToken('device');
 
     (new DeleteAccountAction)->execute($user);
 
-    // Ambos devem ter sumido — nunca apenas um.
     $this->assertDatabaseMissing('users', ['id' => $userId]);
     $this->assertDatabaseMissing('personal_access_tokens', [
         'tokenable_id' => $userId,

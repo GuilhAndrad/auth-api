@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
-// Helper: insere código de confirmação de troca de e-mail
 function seedEmailChangeCode(string $newEmail, string $code, ?Carbon $createdAt = null): void
 {
     DB::table('password_reset_tokens')->updateOrInsert(
@@ -18,10 +17,6 @@ function seedEmailChangeCode(string $newEmail, string $code, ?Carbon $createdAt 
         ['token' => Hash::make($code), 'created_at' => $createdAt ?? now()],
     );
 }
-
-// ═══════════════════════════════════════════════
-// PUT /api/v1/user/email
-// ═══════════════════════════════════════════════
 
 test('a verified user can request an email change', function (): void {
     Notification::fake();
@@ -42,7 +37,7 @@ test('a verified user can request an email change', function (): void {
         ->assertJsonPath('message', 'A verification code has been sent to your new email address.');
 
     expect($user->fresh()->pending_email)->toBe('novo@example.com')
-        ->and($user->fresh()->email)->toBe('atual@example.com'); // e-mail atual intacto
+        ->and($user->fresh()->email)->toBe('atual@example.com');
 });
 
 test('the verification code is sent to the NEW email address', function (): void {
@@ -82,7 +77,7 @@ test('wrong current password is rejected', function (): void {
         'current_password' => 'senha-errada',
     ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors('current_password'); // ← era 'email'
+        ->assertJsonValidationErrors('current_password');
 
     expect($user->fresh()->pending_email)->toBeNull();
     Notification::assertNothingSent();
@@ -150,7 +145,6 @@ test('requesting email change requires authentication', function (): void {
 });
 
 test('requesting email change requires verified email', function (): void {
-    // Usuário não verificado não pode solicitar troca de e-mail
     $user = User::factory()->create(['email_verified_at' => null]);
 
     Sanctum::actingAs($user);
@@ -171,7 +165,6 @@ test('email change request is rate limited', function (): void {
 
     Sanctum::actingAs($user);
 
-    // Esgota o limite (3/min pelo limiter 'email-change')
     foreach (range(1, 3) as $i) {
         $this->putJson('/api/v1/user/email', [
             'email' => "novo{$i}@example.com",
@@ -184,10 +177,6 @@ test('email change request is rate limited', function (): void {
         'current_password' => 'secret',
     ])->assertTooManyRequests();
 });
-
-// ═══════════════════════════════════════════════
-// POST /api/v1/user/email/confirm
-// ═══════════════════════════════════════════════
 
 test('a valid code confirms the email change', function (): void {
     $user = User::factory()->create([
@@ -215,7 +204,6 @@ test('all tokens are revoked after email confirmation', function (): void {
     $user->update(['pending_email' => 'novo@example.com']);
     seedEmailChangeCode('novo@example.com', '123456');
 
-    // withToken força o Sanctum a buscar o token no banco a cada request
     $token = $user->createToken('mobile')->plainTextToken;
     $user->createToken('desktop');
 
@@ -225,7 +213,6 @@ test('all tokens are revoked after email confirmation', function (): void {
 
     expect($user->tokens()->count())->toBe(0);
 
-    // Limpa o estado de auth do Laravel entre requests
     $this->app['auth']->forgetGuards();
 
     $this->withToken($token)
@@ -270,12 +257,10 @@ test('a confirmation code cannot be used twice', function (): void {
 
     $token = $user->createToken('api')->plainTextToken;
 
-    // Primeira confirmação — sucesso e tokens revogados
     $this->withToken($token)
         ->postJson('/api/v1/user/email/confirm', ['code' => '123456'])
         ->assertOk();
 
-    // Precisamos de novo token pois o anterior foi revogado
     $newToken = $user->fresh()->createToken('api2')->plainTextToken;
 
     $this->withToken($newToken)

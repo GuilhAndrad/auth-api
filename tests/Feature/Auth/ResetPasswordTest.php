@@ -51,10 +51,7 @@ test('a wrong code is rejected', function () {
 });
 
 test('an expired code is rejected', function () {
-    // A Action filtra a expiração no próprio SELECT (created_at >= agora - expiry).
-    // O registro expirado NÃO é deletado pela Action — fica no banco até um
-    // cleanup job ou até ser sobrescrito por um novo pedido de código.
-    // A limpeza é responsabilidade de um job separado (ex: artisan auth:clear-resets).
+
     User::factory()->create(['email' => 'test@example.com']);
 
     seedResetCode('test@example.com', '123456', now()->subMinutes(16));
@@ -68,8 +65,6 @@ test('an expired code is rejected', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors('code');
 
-    // Diferente da versão anterior: o registro expirado permanece no banco.
-    // Cleanup é feito por job separado, não pela Action de reset.
     expect(DB::table('password_reset_tokens')->where('email', 'test@example.com')->exists())->toBeTrue();
 });
 

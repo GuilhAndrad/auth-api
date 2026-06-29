@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
-// Helper: registra um user e retorna [user, plainTextToken]
 function registerUser(array $overrides = []): array
 {
     Notification::fake();
@@ -26,7 +25,6 @@ function registerUser(array $overrides = []): array
     return [$user, $response->json('token')];
 }
 
-// Helper: insere código de verificação
 function seedVerificationCode(string $email, string $code, ?Carbon $createdAt = null): void
 {
     DB::table('password_reset_tokens')->updateOrInsert(
@@ -34,10 +32,6 @@ function seedVerificationCode(string $email, string $code, ?Carbon $createdAt = 
         ['token' => Hash::make($code), 'created_at' => $createdAt ?? now()],
     );
 }
-
-// ═══════════════════════════════════════════════
-// POST /api/v1/email/verify
-// ═══════════════════════════════════════════════
 
 test('a valid code verifies the email', function (): void {
     [$user, $token] = registerUser();
@@ -92,12 +86,10 @@ test('once verified, subsequent verify calls return 200 (idempotent)', function 
         ->postJson('/api/v1/email/verify', ['code' => '123456'])
         ->assertOk();
 
-    // Segunda chamada — idempotente por design, não falha
     $this->withToken($token)
         ->postJson('/api/v1/email/verify', ['code' => '123456'])
         ->assertOk();
 
-    // Mas o código original foi consumido — não existe mais
     expect(
         DB::table('password_reset_tokens')->where('email', $user->email)->exists()
     )->toBeFalse();
@@ -107,13 +99,10 @@ test('an invalid code is rejected even after email is verified', function (): vo
     [$user, $token] = registerUser();
     seedVerificationCode($user->email, '123456');
 
-    // Verifica com código correto
     $this->withToken($token)
         ->postJson('/api/v1/email/verify', ['code' => '123456'])
         ->assertOk();
 
-    // Tenta com código diferente após verificação — idempotente, retorna 200
-    // porque a Action verifica email_verified_at antes do código
     $this->withToken($token)
         ->postJson('/api/v1/email/verify', ['code' => '000000'])
         ->assertOk();
@@ -123,12 +112,12 @@ test('the code field must be exactly 6 digits', function (): void {
     [$user, $token] = registerUser();
 
     $this->withToken($token)
-        ->postJson('/api/v1/email/verify', ['code' => '12345'])  // 5 dígitos
+        ->postJson('/api/v1/email/verify', ['code' => '12345'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('code');
 
     $this->withToken($token)
-        ->postJson('/api/v1/email/verify', ['code' => 'abcdef']) // não numérico
+        ->postJson('/api/v1/email/verify', ['code' => 'abcdef'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('code');
 });
@@ -139,8 +128,7 @@ test('email verification requires authentication', function (): void {
 });
 
 test('verifying an already verified email is idempotent — returns 200', function (): void {
-    // Usuário já verificado chama o endpoint novamente (ex: bug de cliente mobile).
-    // Deve retornar 200 silenciosamente, não explodir.
+
     $user = User::factory()->create(['email_verified_at' => now()]);
     $token = $user->createToken('api')->plainTextToken;
 
@@ -148,10 +136,6 @@ test('verifying an already verified email is idempotent — returns 200', functi
         ->postJson('/api/v1/email/verify', ['code' => '123456'])
         ->assertOk();
 });
-
-// ═══════════════════════════════════════════════
-// POST /api/v1/email/verify/resend
-// ═══════════════════════════════════════════════
 
 test('a new code is sent on resend', function (): void {
     Notification::fake();
@@ -171,20 +155,17 @@ test('resend replaces the existing code', function (): void {
 
     [$user, $token] = registerUser();
 
-    // Primeiro resend
     $this->withToken($token)->postJson('/api/v1/email/verify/resend')->assertOk();
 
-    // Segundo resend
     $this->withToken($token)->postJson('/api/v1/email/verify/resend')->assertOk();
 
-    // Deve existir apenas um código na tabela
     expect(
         DB::table('password_reset_tokens')->where('email', $user->email)->count()
     )->toBe(1);
 });
 
 test('resend is silent when email is already verified', function (): void {
-    // Resposta idêntica para verificados e não verificados — não revela estado.
+
     Notification::fake();
 
     $user = User::factory()->create(['email_verified_at' => now()]);
@@ -207,7 +188,6 @@ test('resend is rate limited', function (): void {
 
     [$user, $token] = registerUser();
 
-    // Esgota o limite (5/min reutilizando o limiter 'password')
     foreach (range(1, 5) as $i) {
         $this->withToken($token)->postJson('/api/v1/email/verify/resend');
     }
@@ -216,10 +196,6 @@ test('resend is rate limited', function (): void {
         ->postJson('/api/v1/email/verify/resend')
         ->assertTooManyRequests();
 });
-
-// ═══════════════════════════════════════════════
-// Registro envia e-mail de verificação
-// ═══════════════════════════════════════════════
 
 test('registration sends an email verification notification', function (): void {
     Notification::fake();

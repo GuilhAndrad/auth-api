@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-// Helper local: prepara user com pending_email e código na tabela.
 function setupEmailChange(User $user, string $newEmail, string $code, ?Carbon $createdAt = null): void
 {
     $user->update(['pending_email' => $newEmail]);
@@ -52,9 +51,7 @@ it('sets email_verified_at after confirmation', function (): void {
 });
 
 it('revokes all tokens after confirmation — re-login required on all devices', function (): void {
-    // Trocar o e-mail é equivalente em impacto a trocar a senha:
-    // e-mail é fator de autenticação e recuperação de conta.
-    // Todos os dispositivos devem re-autenticar com o novo e-mail.
+
     $user = User::factory()->create();
     setupEmailChange($user, 'novo@exemplo.com', '123456');
     $user->createToken('mobile');
@@ -93,7 +90,7 @@ it('throws when code is expired', function (): void {
 });
 
 it('throws when there is no pending_email on the user', function (): void {
-    // Usuário sem pending_email não pode confirmar uma troca — não há nada pendente.
+
     $user = User::factory()->create(['pending_email' => null]);
 
     expect(fn () => (new ConfirmEmailChangeAction)->execute($user, '123456'))
@@ -107,7 +104,7 @@ it('does not change email when code is invalid', function (): void {
     try {
         (new ConfirmEmailChangeAction)->execute($user, '000000');
     } catch (InvalidEmailVerificationCodeException) {
-        // esperado
+        //
     }
 
     expect($user->fresh()->email)->toBe('atual@exemplo.com');
@@ -121,15 +118,14 @@ it('does not revoke tokens when code is invalid', function (): void {
     try {
         (new ConfirmEmailChangeAction)->execute($user, '000000');
     } catch (InvalidEmailVerificationCodeException) {
-        // esperado
+        //
     }
 
     expect($user->tokens()->count())->toBe(1);
 });
 
 it('prevents replay attack — second use of same code fails', function (): void {
-    // O delete atômico garante que o código só pode ser usado uma vez.
-    // Simula outra requisição consumindo o código antes desta terminar.
+
     $user = User::factory()->create(['email' => 'atual@exemplo.com']);
     setupEmailChange($user, 'novo@exemplo.com', '123456');
 
@@ -138,13 +134,11 @@ it('prevents replay attack — second use of same code fails', function (): void
     expect(fn () => (new ConfirmEmailChangeAction)->execute($user, '123456'))
         ->toThrow(InvalidEmailVerificationCodeException::class);
 
-    // E-mail não deve ter sido alterado.
     expect($user->fresh()->email)->toBe('atual@exemplo.com');
 });
 
 it('performs email update and token revocation atomically', function (): void {
-    // Valida atomicidade: após execução bem-sucedida, ambos os efeitos
-    // devem ser visíveis simultaneamente — nunca apenas um deles.
+
     $user = User::factory()->create(['email' => 'atual@exemplo.com']);
     setupEmailChange($user, 'novo@exemplo.com', '123456');
     $user->createToken('mobile');

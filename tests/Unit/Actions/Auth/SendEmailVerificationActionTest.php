@@ -56,9 +56,7 @@ it('generates a code between 100000 and 999999 — never starts with zero', func
 });
 
 it('does nothing when the email is already verified — idempotent', function (): void {
-    // A Action é idempotente: não envia e-mail nem cria código para usuários
-    // já verificados. Isso protege o resend endpoint de ser abusado para
-    // inundar a caixa de entrada de um usuário verificado.
+
     Notification::fake();
 
     $user = User::factory()->create(['email_verified_at' => now()]);
@@ -83,9 +81,7 @@ it('replaces an existing code via upsert — always one row per email', function
 });
 
 it('renews created_at on every resend — prevents instant expiry bug', function (): void {
-    // Valida que o upsert renova created_at a cada novo envio.
-    // Se created_at não fosse renovado, o segundo código expiraria
-    // contando o prazo do pedido anterior — bug silencioso em produção.
+
     Notification::fake();
 
     $user = User::factory()->create(['email_verified_at' => null]);

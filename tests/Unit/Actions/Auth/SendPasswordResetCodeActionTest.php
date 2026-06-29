@@ -40,9 +40,7 @@ it('sends the notification to the correct user', function (): void {
 });
 
 it('silently does nothing for an unknown email (OWASP A7 — user enumeration)', function (): void {
-    // A Action não deve lançar exceção nem criar registro para e-mails inexistentes.
-    // Isso impede que um atacante enumere quais e-mails estão cadastrados
-    // observando diferenças no comportamento da API.
+
     Notification::fake();
 
     (new SendPasswordResetCodeAction)->execute('ghost@example.com');
@@ -52,8 +50,7 @@ it('silently does nothing for an unknown email (OWASP A7 — user enumeration)',
 });
 
 it('replaces an existing code via upsert — always one row per email', function (): void {
-    // O upsert (em vez do updateOrInsert anterior) garante que apenas uma linha
-    // existe por email. Valida também que a constraint uniqueBy: ['email'] funciona.
+
     Notification::fake();
 
     $user = User::factory()->create(['email' => 'jane@example.com']);
@@ -67,12 +64,11 @@ it('replaces an existing code via upsert — always one row per email', function
 });
 
 it('renews created_at on every new code request (upsert guarantee)', function (): void {
-    // O upsert com update: ['token', 'created_at'] garante que ambos são sempre escritos.
+
     Notification::fake();
 
     $user = User::factory()->create(['email' => 'jane@example.com']);
 
-    // Primeiro pedido com timestamp antigo simulado
     DB::table('password_reset_tokens')->insert([
         'email' => $user->email,
         'token' => Hash::make('111111'),
@@ -83,7 +79,6 @@ it('renews created_at on every new code request (upsert guarantee)', function ()
         ->where('email', $user->email)
         ->value('created_at');
 
-    // Segundo pedido deve renovar o created_at
     (new SendPasswordResetCodeAction)->execute($user->email);
 
     $after = DB::table('password_reset_tokens')
@@ -94,8 +89,7 @@ it('renews created_at on every new code request (upsert guarantee)', function ()
 });
 
 it('generates a code with exactly 6 digits (never less, never more)', function (): void {
-    // random_int(100_000, 999_999) garante sempre 6 dígitos sem STR_PAD_LEFT.
-    // random_int(0, 999_999) poderia gerar "007823" — ambíguo em alguns parsers.
+
     Notification::fake();
 
     $user = User::factory()->create();
@@ -107,6 +101,6 @@ it('generates a code with exactly 6 digits (never less, never more)', function (
         PasswordResetCode::class,
         fn (PasswordResetCode $n): bool => strlen($n->code) === 6
             && ctype_digit($n->code)
-            && (int) $n->code >= 100_000, // nunca começa com zero
+            && (int) $n->code >= 100_000,
     );
 });

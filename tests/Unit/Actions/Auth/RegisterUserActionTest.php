@@ -71,10 +71,7 @@ it('stores the password hashed, never as plain text', function (): void {
 });
 
 it('dispatches the Registered event after both user and token are persisted', function (): void {
-    // Valida que o evento só dispara APÓS as duas escritas (User + Token) serem
-    // confirmadas dentro da DB::transaction. Se o evento disparasse antes do
-    // createToken, um listener de e-mail poderia notificar um user sem token —
-    // race condition crítica em sistemas com filas (Horizon, SQS).
+
     Event::fake();
 
     $dto = new RegisterDTO(
@@ -87,7 +84,7 @@ it('dispatches the Registered event after both user and token are persisted', fu
     (new RegisterUserAction)->execute($dto);
 
     Event::assertDispatched(Registered::class, function (Registered $event): bool {
-        // No momento do assert, tanto o User quanto o Token já devem existir no banco.
+
         return $event->user instanceof User
             && $event->user->email === 'jane@example.com'
             && $event->user->tokens()->count() === 1;
@@ -95,9 +92,7 @@ it('dispatches the Registered event after both user and token are persisted', fu
 });
 
 it('rolls back user creation if token creation fails', function (): void {
-    // Valida a atomicidade da DB::transaction: se createToken falhar,
-    // o User não deve ser persistido — sem estado inconsistente no banco.
-    // Simulamos a falha mockando o User para explodir no createToken.
+
     $this->mock(User::class)
         ->shouldReceive('create')
         ->andReturnSelf()
@@ -112,5 +107,5 @@ it('rolls back user creation if token creation fails', function (): void {
     );
 
     expect(fn () => (new RegisterUserAction)->execute($dto))
-        ->not->toThrow(InvalidArgumentException::class); // não engole exceções silenciosamente
+        ->not->toThrow(InvalidArgumentException::class);
 });

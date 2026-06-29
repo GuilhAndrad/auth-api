@@ -38,9 +38,7 @@ it('throws InvalidCredentialsException for wrong password', function (): void {
 });
 
 it('throws InvalidCredentialsException for non-existent email', function (): void {
-    // Este caso validava um bug anterior onde a Action lançava Error genérico
-    // ao tentar acessar ->password em null. Com os dois if separados e o
-    // Hash::check dummy, agora lança corretamente InvalidCredentialsException.
+
     $dto = new LoginDTO(
         email: 'ghost@example.com',
         password: 'any-password',
@@ -52,11 +50,7 @@ it('throws InvalidCredentialsException for non-existent email', function (): voi
 });
 
 it('executes Hash::check even when user does not exist (timing attack mitigation)', function (): void {
-    // Valida que a proteção contra timing attack está ativa:
-    // o Hash::check com o DUMMY_HASH deve ser chamado quando o user não existe,
-    // equiparando o tempo de resposta ao cenário de senha errada.
-    // Sem isso, a diferença de latência entre os dois branches entregaria via
-    // side-channel quais e-mails estão cadastrados (OWASP A7 — user enumeration).
+
     Hash::spy();
 
     $dto = new LoginDTO(
@@ -68,10 +62,9 @@ it('executes Hash::check even when user does not exist (timing attack mitigation
     try {
         (new LoginUserAction)->execute($dto);
     } catch (InvalidCredentialsException) {
-        // esperado
+        //
     }
 
-    // Garante que Hash::check foi chamado mesmo sem user — é o dummy hash sendo verificado.
     Hash::shouldHaveReceived('check')->once();
 });
 
@@ -87,7 +80,7 @@ it('does not create a token on failed login', function (): void {
     try {
         (new LoginUserAction)->execute($dto);
     } catch (InvalidCredentialsException) {
-        // esperado
+        //
     }
 
     expect($user->tokens()->count())->toBe(0);

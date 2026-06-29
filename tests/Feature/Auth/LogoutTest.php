@@ -12,8 +12,6 @@ test('logout revokes the current token', function () {
 
     expect($user->tokens()->count())->toBe(0);
 
-    // The guard caches the resolved user within a single test, so reset it
-    // before asserting the revoked token no longer authenticates.
     auth()->forgetGuards();
 
     $this->withToken($token)

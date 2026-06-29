@@ -39,8 +39,7 @@ it('revokes every token except the current one', function (): void {
 });
 
 it('keeps the current token active so the session is not interrupted', function (): void {
-    // UX intencional: quem trocou a senha permanece logado.
-    // Apenas outros dispositivos são forçados a re-autenticar.
+
     $user = User::factory()->create();
     $currentToken = $user->createToken('session');
 
@@ -55,7 +54,7 @@ it('keeps the current token active so the session is not interrupted', function 
 });
 
 it('does not delete tokens from other users', function (): void {
-    // Garante que a revogação é scoped ao $user — nunca global.
+
     $user = User::factory()->create();
     $other = User::factory()->create();
     $currentToken = $user->createToken('current');
@@ -72,11 +71,7 @@ it('does not delete tokens from other users', function (): void {
 });
 
 it('executes password update and token revocation atomically', function (): void {
-    // Valida que ambas as operações ocorrem dentro de uma DB::transaction.
-    // Se a revogação de tokens falhar após o update da senha, o rollback deve
-    // restaurar a senha original — sem estado inconsistente (nova senha + tokens ativos).
-    // Testamos isso verificando que, após execução bem-sucedida, ambos os efeitos
-    // são visíveis simultaneamente — nunca apenas um deles.
+
     $user = User::factory()->create(['password' => bcrypt('old-password')]);
     $currentToken = $user->createToken('current');
     $user->createToken('other');
@@ -90,7 +85,6 @@ it('executes password update and token revocation atomically', function (): void
 
     $freshUser = $user->fresh();
 
-    // Ambos os efeitos devem ser verdadeiros ao mesmo tempo.
     expect(Hash::check('new-secret-password', $freshUser->password))->toBeTrue()
-        ->and($user->tokens()->count())->toBe(1); // apenas 'current' sobreviveu
+        ->and($user->tokens()->count())->toBe(1);
 });

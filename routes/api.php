@@ -22,14 +22,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     });
 
-    // Autenticado mas sem exigir e-mail verificado
-    // (verificação e resend precisam de auth, mas não podem exigir o que ainda não existe)
     Route::middleware(['auth:sanctum', 'throttle:password'])->group(function () {
         Route::post('/email/verify', [EmailVerificationController::class, 'verify']);
         Route::post('/email/verify/resend', [EmailVerificationController::class, 'resend']);
     });
 
-    // Autenticado E com e-mail verificado
     Route::middleware(['auth:sanctum', 'throttle:api', EnsureEmailIsVerified::class])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
 

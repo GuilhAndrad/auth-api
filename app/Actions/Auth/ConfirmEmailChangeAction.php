@@ -16,7 +16,7 @@ final class ConfirmEmailChangeAction
         if (! $user->pending_email) {
             throw new InvalidEmailVerificationCodeException;
         }
-        // Busca o token de verificação de e-mail no banco de dados.
+
         $row = DB::table('password_reset_tokens')
             ->where('email', $user->pending_email)
             ->where('created_at', '>=', now()->subMinutes(config('auth.passwords.users.expire')))
@@ -29,7 +29,6 @@ final class ConfirmEmailChangeAction
             throw new InvalidEmailVerificationCodeException;
         }
 
-        // Delete atômico — proteção contra replay attack
         $deleted = DB::table('password_reset_tokens')
             ->where('email', $user->pending_email)
             ->where('token', $row->token)
@@ -43,13 +42,9 @@ final class ConfirmEmailChangeAction
             $user->update([
                 'email' => $user->pending_email,
                 'pending_email' => null,
-                // Marca o e-mail como verificado
                 'email_verified_at' => now(),
             ]);
 
-            // Revoga todos os tokens: re-login obrigatório em todos os dispositivos.
-            // e-mail é fator de autenticação e recuperação —
-            // trocar o e-mail é equivalente em impacto de trocar a senha.
             $user->tokens()->delete();
         });
     }

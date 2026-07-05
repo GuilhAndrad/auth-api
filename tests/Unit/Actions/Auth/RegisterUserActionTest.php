@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 it('creates a user with the correct attributes', function (): void {
     $dto = new RegisterDTO(
@@ -108,4 +109,18 @@ it('rolls back user creation if token creation fails', function (): void {
 
     expect(fn () => (new RegisterUserAction)->execute($dto))
         ->not->toThrow(InvalidArgumentException::class);
+});
+it('does NOT send WelcomeNotification directly — that is the controller responsibility', function (): void {
+    Notification::fake();
+
+    $dto = new RegisterDTO(
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        password: 'secret-password',
+        deviceName: 'api',
+    );
+
+    (new RegisterUserAction)->execute($dto);
+
+    Notification::assertNothingSent();
 });

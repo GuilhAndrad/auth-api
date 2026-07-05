@@ -10,6 +10,7 @@ final readonly class LoginDTO
         public string $email,
         public string $password,
         public string $deviceName,
+        public readonly string $ipAddress,
     ) {}
 
     /** @param array<string, mixed> $validated */
@@ -19,6 +20,7 @@ final readonly class LoginDTO
             email: $validated['email'],
             password: $validated['password'],
             deviceName: $validated['device_name'] ?? 'api',
+            ipAddress: $validated['ip_address'] ?? 'unknown',
         );
     }
 }

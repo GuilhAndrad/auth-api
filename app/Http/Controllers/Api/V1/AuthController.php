@@ -19,6 +19,7 @@ use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Http\Requests\Api\V1\ResetPasswordRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\User;
+use App\Notifications\WelcomeNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -31,18 +32,24 @@ final class AuthController extends Controller
      *
      * Register a new user and return an access token.
      */
-    public function signUp(RegisterRequest $request, RegisterUserAction $register, SendEmailVerificationAction $sendVerification): JsonResponse
-    {
+    public function signUp(
+        RegisterRequest $request,
+        RegisterUserAction $register,
+        SendEmailVerificationAction $sendVerification,
+    ): JsonResponse {
         $token = $register->execute(RegisterDTO::fromRequest($request->validated()));
 
         /** @var User $user */
         $user = $token->accessToken->tokenable;
+
+        $user->notify(new WelcomeNotification);
+
         $sendVerification->execute($user);
 
         return response()->json([
             'token' => $token->plainTextToken,
             'token_type' => 'Bearer',
-            'user' => new UserResource($token->accessToken->tokenable),
+            'user' => new UserResource($user),
         ], 201);
     }
 

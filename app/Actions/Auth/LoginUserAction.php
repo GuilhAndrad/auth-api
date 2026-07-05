@@ -7,6 +7,7 @@ namespace App\Actions\Auth;
 use App\DTOs\Auth\LoginDTO;
 use App\Exceptions\Auth\InvalidCredentialsException;
 use App\Models\User;
+use App\Notifications\NewDeviceLogin;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\NewAccessToken;
 
@@ -17,7 +18,6 @@ final class LoginUserAction
     public function execute(LoginDTO $dto): NewAccessToken
     {
         $user = User::query()
-            ->select(['id', 'name', 'email', 'password'])
             ->where('email', $dto->email)
             ->first();
 
@@ -30,6 +30,28 @@ final class LoginUserAction
             throw new InvalidCredentialsException;
         }
 
+        $this->notifyIfNewDevice($user, $dto);
+
         return $user->createToken($dto->deviceName);
+    }
+
+    private function notifyIfNewDevice(User $user, LoginDTO $dto): void
+    {
+
+        if ($user->tokens()->count() === 0) {
+            return;
+        }
+
+        $isKnownDevice = $user->tokens()
+            ->where('name', $dto->deviceName)
+            ->exists();
+
+        if (! $isKnownDevice) {
+            $user->notify(new NewDeviceLogin(
+                deviceName: $dto->deviceName,
+                ipAddress: $dto->ipAddress,
+                loginAt: now()->toDateTimeString(),
+            ));
+        }
     }
 }

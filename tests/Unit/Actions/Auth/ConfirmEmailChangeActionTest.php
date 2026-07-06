@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Actions\Auth\ConfirmEmailChangeAction;
 use App\Exceptions\Auth\InvalidEmailVerificationCodeException;
 use App\Models\User;
+use App\Notifications\EmailChangedNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 function setupEmailChange(User $user, string $newEmail, string $code, ?Carbon $createdAt = null): void
 {
@@ -71,6 +73,47 @@ it('deletes the verification code after confirmation — single use', function (
     expect(
         DB::table('password_reset_tokens')->where('email', 'novo@exemplo.com')->exists()
     )->toBeFalse();
+});
+
+it('sends EmailChangedNotification to the OLD email address before updating', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['email' => 'atual@exemplo.com']);
+    setupEmailChange($user, 'novo@exemplo.com', '123456');
+
+    (new ConfirmEmailChangeAction)->execute($user, '123456');
+
+    Notification::assertSentTo($user, EmailChangedNotification::class);
+});
+
+it('EmailChangedNotification carries the old email address', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['email' => 'atual@exemplo.com']);
+    setupEmailChange($user, 'novo@exemplo.com', '123456');
+
+    (new ConfirmEmailChangeAction)->execute($user, '123456');
+
+    Notification::assertSentTo(
+        $user,
+        EmailChangedNotification::class,
+        fn (EmailChangedNotification $n): bool => $n->oldEmail === 'atual@exemplo.com',
+    );
+});
+
+it('does not send EmailChangedNotification when code is invalid', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['email' => 'atual@exemplo.com']);
+    setupEmailChange($user, 'novo@exemplo.com', '123456');
+
+    try {
+        (new ConfirmEmailChangeAction)->execute($user, '000000');
+    } catch (InvalidEmailVerificationCodeException) {
+        //
+    }
+
+    Notification::assertNothingSentTo($user, EmailChangedNotification::class);
 });
 
 it('throws when code is wrong', function (): void {

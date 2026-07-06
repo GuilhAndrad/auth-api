@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Actions\Auth\DeleteAccountAction;
 use App\Models\User;
+use App\Notifications\AccountDeletedNotification;
+use Illuminate\Support\Facades\Notification;
 
 it('removes the user row from the database', function (): void {
     $user = User::factory()->create();
@@ -59,4 +61,49 @@ it('deletes tokens and user atomically', function (): void {
         'tokenable_id' => $userId,
         'tokenable_type' => User::class,
     ]);
+});
+
+it('sends AccountDeletedNotification before deleting the user', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['name' => 'Jane Doe']);
+
+    (new DeleteAccountAction)->execute($user);
+
+    Notification::assertSentTo($user, AccountDeletedNotification::class);
+});
+
+it('AccountDeletedNotification carries the correct user name', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['name' => 'Jane Doe']);
+
+    (new DeleteAccountAction)->execute($user);
+
+    Notification::assertSentTo(
+        $user,
+        AccountDeletedNotification::class,
+        fn (AccountDeletedNotification $n): bool => $n->userName === 'Jane Doe',
+    );
+});
+
+it('sends AccountDeletedNotification exactly once', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    (new DeleteAccountAction)->execute($user);
+
+    Notification::assertSentToTimes($user, AccountDeletedNotification::class, 1);
+});
+
+it('does not send AccountDeletedNotification to other users', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    (new DeleteAccountAction)->execute($user);
+
+    Notification::assertNothingSentTo($other, AccountDeletedNotification::class);
 });

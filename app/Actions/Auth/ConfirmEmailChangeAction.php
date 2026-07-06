@@ -6,6 +6,7 @@ namespace App\Actions\Auth;
 
 use App\Exceptions\Auth\InvalidEmailVerificationCodeException;
 use App\Models\User;
+use App\Notifications\EmailChangedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -39,6 +40,11 @@ final class ConfirmEmailChangeAction
         }
 
         DB::transaction(function () use ($user): void {
+
+            $oldEmail = $user->email;
+
+            $user->notify(new EmailChangedNotification(oldEmail: $oldEmail));
+
             $user->update([
                 'email' => $user->pending_email,
                 'pending_email' => null,

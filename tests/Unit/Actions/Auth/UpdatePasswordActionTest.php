@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Actions\Auth\UpdatePasswordAction;
 use App\DTOs\Auth\UpdatePasswordDTO;
 use App\Models\User;
+use App\Notifications\PasswordChangedNotification;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 it('persists the new password hashed', function (): void {
     $user = User::factory()->create(['password' => bcrypt('old-password')]);
@@ -87,4 +89,53 @@ it('executes password update and token revocation atomically', function (): void
 
     expect(Hash::check('new-secret-password', $freshUser->password))->toBeTrue()
         ->and($user->tokens()->count())->toBe(1);
+});
+
+it('sends PasswordChangedNotification after successful password update', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $currentToken = $user->createToken('current');
+
+    $dto = new UpdatePasswordDTO(
+        currentPassword: 'password',
+        newPassword: 'new-secret-password',
+    );
+
+    (new UpdatePasswordAction)->execute($user, $dto, $currentToken->accessToken);
+
+    Notification::assertSentTo($user, PasswordChangedNotification::class);
+});
+
+it('sends PasswordChangedNotification exactly once', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $currentToken = $user->createToken('current');
+
+    $dto = new UpdatePasswordDTO(
+        currentPassword: 'password',
+        newPassword: 'new-secret-password',
+    );
+
+    (new UpdatePasswordAction)->execute($user, $dto, $currentToken->accessToken);
+
+    Notification::assertSentToTimes($user, PasswordChangedNotification::class, 1);
+});
+
+it('does not send PasswordChangedNotification to other users', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    $currentToken = $user->createToken('current');
+
+    $dto = new UpdatePasswordDTO(
+        currentPassword: 'password',
+        newPassword: 'new-secret-password',
+    );
+
+    (new UpdatePasswordAction)->execute($user, $dto, $currentToken->accessToken);
+
+    Notification::assertNothingSentTo($other, PasswordChangedNotification::class);
 });
